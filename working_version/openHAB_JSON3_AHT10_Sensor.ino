@@ -17,7 +17,7 @@ EXTENSIVE COMMENTING AND TIDY UP OF WHOLE PROGRAM TO MAKE IT MORE READABLE AND E
 #include <Adafruit_BME280.h>    // THIS LIBRARY MAY NEED CHANGING DEPENDING ON SENSORS BEING USED - THIS IS THE BME280 AS SUED ON MY DIY SENSOR UNITS
 #include <Adafruit_AHTX0.h>     // THIS LIBRARY MAY NEED CHANGING DEPENDING ON SENSORS BEING USED - THIS IS THE AHT10 AS SUED ON MY DIY SENSOR UNITS
 
-
+ADC_MODE(ADC_VCC) // setup availability to read votage from ADC pin
 
 // DEFINE THE CONSTANTS
 // SOME CONSTANTS THAT MAY CHANGE FROM SENSOR TO SENSOR
@@ -28,16 +28,16 @@ const char* NETWORK_SSID = "chameleon";       // WIFI SSID
 const char* NETWORK_PASSWORD = "colourchange";// WIFI PASSWORD
 const char* MQTT_SERVER = "192.168.0.99";     // MQTT BROKER IP ADDRESS
 const char* MQTT_PORT = "1883";               // MQTT PORT NUMBER
-const char* MQTT_CLIENT = "Hall_Sensor1";         // THIS NAME NEEDS TO BE UNIQUE FOR EACH CLIENT CREATED
+const char* MQTT_CLIENT = "Hall";         // THIS NAME NEEDS TO BE UNIQUE FOR EACH CLIENT CREATED
 
 const char* SUBSCRIBE_TOPIC_1 = ""; // TOPIC TO SUBSCRIBE TO, ADD MORE FOR EACH NEW TOPIC
-const char* PUBLISH_TOPIC_1 = "remote/sensor2";               // TOPIC TO PUBLISH TO
+const char* PUBLISH_TOPIC_1 = "hall/sensor1";               // TOPIC TO PUBLISH TO
 
 
 // OTHERS
-const int LED_GPIO13 = 13;  // LED TO DEMONSTRATE THE OPENHAB SWITCH FUNCTIONALITY
-const int PWR_GPIO15 = 15;
-const int GPIO14 = 14;
+const int ONBOARD_LED_PIN = 13; // just for testing the onboard LED during commands sent to sensor board
+const int SENSOR_PWR_PIN = 15; // powers the sensor chip (GPIO15 - D8)
+
 
 //Adafruit_HTU21DF HTU_SENSOR = Adafruit_HTU21DF();  //CREATE AND ADAFRUIT HTU21DF OBJECT, THERE ARE NO PINS TO DEFINE AS THE I2C BUS IS 
 //Adafruit_BME280 BMP_SENSOR;                        //CREATE AND ADAFRUIT BMP280 OBJECT,THERE ARE NO PINS TO DEFINE AS THE I2C BUS IS USED 
@@ -48,22 +48,17 @@ WiFiClient ESP_CLIENT;                            //CREATES A PARTIALLY INITIALI
 PubSubClient client(ESP_CLIENT);                  //CONFIGURE THE SERVER BEFORE IT IS USED
 
 
-
-
-
-
-
 //
 void setup() {
   
   Serial.begin(115200);   //ALLOW SERIAL DATA COMMUNICATION, MAINLY FOR ECHOING STUFF TO THE SERIAL MONITOR IN ARDUINO IDE, USEFULL FOR DEBUGGING PROGRAM DURING TESTING STAGE
 
   // SET THE GPIO PIN TO AN OUTPUT 
- pinMode(LED_GPIO13, OUTPUT);
- pinMode(PWR_GPIO15, OUTPUT);
- pinMode(GPIO14, OUTPUT);
+ pinMode(ONBOARD_LED_PIN, OUTPUT);
+ pinMode(SENSOR_PWR_PIN, OUTPUT);
+ 
 
- digitalWrite(PWR_GPIO15, HIGH);
+ digitalWrite(SENSOR_PWR_PIN, HIGH);
 
 // CONNECT TO THE WIFI NETWORK WITH DEFINED NETWORK SSID AND PASSWORD
   
@@ -96,7 +91,7 @@ void setup() {
   Serial.println("]");
   
   // CALL  THE FUNCTION TO CONNECT TO THE MQTT SERVER
-  delay(500);
+  delay(1000);
   connect_to_MQTT();
 
   setupAHTSensor();
@@ -128,7 +123,7 @@ void setup() {
 
 
   Serial.println("I'm awake, but I'm going into deep sleep mode for 15 mins");
-  digitalWrite(PWR_GPIO15, LOW);
+  digitalWrite(SENSOR_PWR_PIN, LOW);
   ESP.deepSleep(MEASUREMENT_PERIOD);
   
 }
@@ -158,7 +153,7 @@ void createJSON(){
   StaticJsonBuffer<300> JSONbuffer;
   JsonObject& JSONencoder = JSONbuffer.createObject();
  
-  JSONencoder["remote"] = "sensor2";
+  JSONencoder["hall"] = "sensor1";
   JsonArray& temps = JSONencoder.createNestedArray("temperature");
       temps.add(temp.temperature);
     
@@ -196,11 +191,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
   
   
   if(messageTemp == "ON"){
-        digitalWrite(LED_GPIO13, HIGH);
+        digitalWrite(ONBOARD_LED_PIN, HIGH);
        
       }
   else if(messageTemp == "OFF"){
-        digitalWrite(LED_GPIO13, LOW);
+        digitalWrite(ONBOARD_LED_PIN, LOW);
        
       }
  
@@ -216,13 +211,12 @@ float getConnectionData(){
 }
 
 float getVoltage(){
- digitalWrite(GPIO14, HIGH);
+
+ 
   // read the input on analog pin 0:
-  int sensorValue = analogRead(A0);
-  // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float voltage = sensorValue * (4.0 / 1023.0);
-  digitalWrite(GPIO14, LOW);
-  // print out the value you read:
+ 
+  float voltage = (ESP.getVcc()/1000.00);
+    // print out the value you read:
   Serial.println(voltage);
   return voltage;
   }
